@@ -3,10 +3,16 @@ const jwt = require("jsonwebtoken");
 const user_collection = require('../../DB/Modals/userModal')
 exports.login = async (req, res) => {
     try {
-        const { email, password } = await req.body
+        const { email_or_phone, password } = await req.body
 
-        if (email && password) {
-            const userArry = await user_collection.find({ email: email.toString() });
+        if (email_or_phone && password) {
+            // const userArry = await user_collection.find({ email: email });
+            const userArry = await user_collection.find({
+                $or: [
+                    { email: email_or_phone },
+                    { phoneNumber: email_or_phone }
+                ]
+            });
 
             if (userArry.length > 0) {
                 bcrypt.compare(password, userArry[0].password, async (err, result) => {
@@ -43,9 +49,10 @@ exports.login = async (req, res) => {
 }
 exports.signUp = async (req, res) => {
     try {
-        const { firstName, lastName, phoneNumber, email, role, userName, password } = await req.body
+        const { firstName, lastName, phoneNumber, email, role, password } = await req.body
+        const randoNumber = await (Date.now() + (Math.floor((Math.random() * 100) + 1))).toString()
 
-        if (firstName && lastName && phoneNumber && email && role && userName && password) {
+        if (firstName && lastName && phoneNumber && email && role  && password) {
             const hashingPassword = await bcrypt.hash(password, 10)
             const userInfo = await {
                 firstName,
@@ -53,7 +60,7 @@ exports.signUp = async (req, res) => {
                 phoneNumber,
                 email,
                 role,
-                userName,
+                userName: `${firstName}${lastName}${randoNumber.slice(randoNumber.length/2, randoNumber.length)}`,
                 password: hashingPassword
             }
 
@@ -84,8 +91,7 @@ exports.signUp = async (req, res) => {
         }
 
     } catch (err) {
-        console.log(err)
-        res.status(404).send({ failed: "failed to Create your account, please tryout latter" })
+        res.status(404).send({ failed: "Your Email, Phone Number Must Be Uniqu, please tryout latter" })
     }
 }
 
@@ -96,7 +102,6 @@ exports.getSingleUser = async (req, res) => {
         res.json({ data: user })
 
     } catch (error) {
-        // console.log("error from error section !", error)
         res.json({ failed: "User not found" })
     }
 }
@@ -104,7 +109,7 @@ exports.getSingleUser = async (req, res) => {
 exports.updateSingleUser = async (req, res) => {
     try {
         const { id } = await req.params;
-        const { firstName, lastName, phoneNumber, role } = req.body
+        const { firstName, lastName, phoneNumber, role, userName } = req.body
 
         if (firstName && lastName && phoneNumber && role) {
             const userInfo = await {
@@ -112,9 +117,10 @@ exports.updateSingleUser = async (req, res) => {
                 lastName,
                 phoneNumber,
                 role,
+                userName
             }
 
-            const updateUser = await user_collection.findOneAndUpdate({ _id: _id },
+            const updateUser = await user_collection.findOneAndUpdate({ _id: id },
                 {
                     $set: {
                         ...userInfo
@@ -129,7 +135,6 @@ exports.updateSingleUser = async (req, res) => {
         }
 
     } catch (error) {
-        // console.log("error from error section !", error)
         res.json({ failed: "User not found" })
     }
 }
@@ -140,7 +145,6 @@ exports.deleteSingleUser = async (req, res) => {
         res.json({ data: user })
 
     } catch (error) {
-        // console.log("error from error section !", error)
         res.json({ failed: "User not found" })
     }
 }
